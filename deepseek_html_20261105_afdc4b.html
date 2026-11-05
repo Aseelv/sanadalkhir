@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابة حجز المواعيد</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #106649; --dark: #0b4159; --bg: #f4f6f8; --surface: #ffffff; --border: #e0e0e0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
+        body { background-color: var(--bg); color: #333; padding: 20px; }
+        
+        header { background: linear-gradient(135deg, var(--dark), var(--primary)); color: #fff; padding: 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        header h1 { font-size: 20px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: inherit; transition: 0.2s; }
+        .btn-primary { background: #fff; color: var(--primary); }
+        .btn-submit { background: var(--primary); color: #fff; width: 100%; padding: 12px; font-size: 16px; margin-top: 10px; }
+        .btn-submit:hover { background: var(--dark); }
+
+        .grid { display: grid; grid-template-columns: 1fr 400px; gap: 20px; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+        .card { background: var(--surface); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid var(--border); }
+        .card-title { font-size: 16px; font-weight: bold; color: var(--dark); margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: #f8f9fa; padding: 10px; text-align: right; border-bottom: 2px solid var(--border); color: #666; }
+        td { padding: 10px; border-bottom: 1px solid var(--border); }
+        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; background: #fff3cd; color: #856404; }
+
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 12px; color: #555; margin-bottom: 5px; font-weight: 600; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-family: inherit; font-size: 13px; }
+        .form-group input:focus { outline: none; border-color: var(--primary); }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--primary); color: #fff; padding: 12px 24px; border-radius: 8px; display: none; z-index: 999; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>📋 بوابة حجز المواعيد</h1>
+        <button class="btn btn-primary" onclick="loadOrders()">🔄 تحديث الطلبات</button>
+    </header>
+
+    <div class="grid">
+        <div class="card">
+            <div class="card-title">📦 قائمة الطلبات</div>
+            <table>
+                <thead>
+                    <tr><th>الرقم</th><th>الاسم</th><th>المدينة</th><th>الحالة</th></tr>
+                </thead>
+                <tbody id="orders-table">
+                    <tr><td colspan="4" style="text-align:center;">جاري التحميل...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <div class="card-title">➕ حجز موعد جديد</div>
+            <form id="create-form">
+                <div class="form-group">
+                    <label>اسم المستفيد *</label>
+                    <input type="text" id="name" required placeholder="مثال: منال">
+                </div>
+                <div class="row">
+                    <div class="form-group">
+                        <label>رقم الجوال *</label>
+                        <input type="text" id="phone" required placeholder="580180698">
+                    </div>
+                    <div class="form-group">
+                        <label>الحي</label>
+                        <input type="text" id="district_name" placeholder="العليا">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="form-group">
+                        <label>المنطقة</label>
+                        <input type="number" id="region_id" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label>المدينة</label>
+                        <input type="number" id="city_id" value="1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>العنوان</label>
+                    <input type="text" id="address" placeholder="الشارع، رقم المبنى">
+                </div>
+                <div class="row">
+                    <div class="form-group">
+                        <label>التاريخ</label>
+                        <input type="date" id="order_date" required>
+                    </div>
+                    <div class="form-group">
+                        <label>ملاحظات</label>
+                        <textarea id="order_notes" rows="1"></textarea>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-submit">🚀 إرسال الطلب</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // دالة الإشعارات
+        function showToast(msg, isError = false) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.style.background = isError ? '#c0392b' : '#106649';
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
+        }
+
+        // 1. جلب الطلبات (عبر الوسيط)
+        async function loadOrders() {
+            const tbody = document.getElementById('orders-table');
+            try {
+                // نرسل الطلب للوسيط
+                const res = await fetch('/api/proxy?endpoint=/api/admin/orders&limit=10');
+                const data = await res.json();
+                
+                // التعامل مع شكل الرد (مصفوفة مباشرة أو داخل data)
+                const orders = Array.isArray(data) ? data : (data.data || data.result || []);
+
+                if (orders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">لا توجد طلبات.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = orders.map(o => `
+                    <tr>
+                        <td>${o.uuid || o.id}</td>
+                        <td>${o.name || o.contributor?.name || '-'}</td>
+                        <td>${o.city?.title || '-'}</td>
+                        <td><span class="status-badge">${o.status_title || o.status || '-'}</span></td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:red;">فشل جلب الطلبات (تأكد من إعدادات الوسيط).</td></tr>';
+            }
+        }
+
+        // 2. إنشاء طلب جديد (عبر الوسيط)
+        document.getElementById('create-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true;
+            btn.textContent = 'جاري الإرسال...';
+
+            // تجميع البيانات
+            const payload = {
+                country_id: 170,
+                region_id: parseInt(document.getElementById('region_id').value) || 1,
+                city_id: parseInt(document.getElementById('city_id').value) || 1,
+                relief_id: 39,
+                communication_type: "whatsapp",
+                mobile_key: "966",
+                order_type: "scheduled",
+                source: "whatsapp",
+                name: document.getElementById('name').value,
+                phone: document.getElementById('phone').value,
+                address: document.getElementById('address').value,
+                district_name: document.getElementById('district_name').value,
+                order_date: document.getElementById('order_date').value,
+                order_notes: document.getElementById('order_notes').value,
+                contributions: [ { contribution_id: 85, quantity: 1 } ] // مساهمة افتراضية
+            };
+
+            try {
+                // إرسال الطلب للوسيط
+                const res = await fetch('/api/proxy?endpoint=/api/contributor/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await res.json();
+                
+                if (res.ok) {
+                    showToast('✅ تم إنشاء الطلب بنجاح!');
+                    e.target.reset();
+                    document.getElementById('order_date').value = new Date().toISOString().split('T')[0];
+                    loadOrders();
+                } else {
+                    showToast('❌ فشل الإنشاء: ' + (result.msg || result.message || 'خطأ'), true);
+                }
+            } catch (err) {
+                showToast('❌ خطأ في الاتصال بالوسيط', true);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🚀 إرسال الطلب';
+            }
+        });
+
+        // تشغيل الجلب وضبط التاريخ
+        loadOrders();
+        document.getElementById('order_date').value = new Date().toISOString().split('T')[0];
+    </script>
+</body>
+</html>
